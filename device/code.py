@@ -25,7 +25,7 @@ print("start with firmware", esp.firmware_version)
 
 dot.fill((255, 0, 0))
 
-class SocketManager:
+class SocketClient:
     def __init__(self, _secrets):
         # set global network interface for the socket library
         self.secrets = _secrets
@@ -71,7 +71,7 @@ class SocketManager:
         try:
             self.sock.connect((self.host, self.port), esp.TCP_MODE)
         except RuntimeError as ex:
-            print("[SocketManager reconnect] err", ex, "sleep and retry")
+            print("[SocketClient reconnect] err", ex, "sleep and retry")
             time.sleep(1)
             self.reconnect_socket()
 
@@ -82,43 +82,43 @@ class SocketManager:
     def read(self):
         return self.sock.read()
 
-server = SocketManager(secrets)
-server.set_interface(esp)
+client = SocketClient(secrets)
+client.set_interface(esp)
 
-while not server.socket_connected:
+while not client.socket_connected:
     try:
         print("[init] connect!")
-        server.connect()
+        client.connect()
     except RuntimeError:
-        server.reset()
+        client.reset()
         time.sleep(1)
 
 while True:
     dot.fill((100, 100, 0))
 
-    if server.socket_connected:
+    if client.socket_connected:
         print("[mainloop] try to ping")
         try:
-            to_send = b"ping %i" % server.message_count
+            to_send = b"ping %i" % client.message_count
             print("[mainloop] >", to_send)
-            server.write(to_send)
+            client.write(to_send)
             time.sleep(0.1)
-            data = server.read()
+            data = client.read()
             while data:
                 print("<", data)
-                data = server.read()
+                data = client.read()
         except RuntimeError as ex:
             # failed to write, maybe the connection went away?
             print("[RuntimeError] error writing to socket.", ex)
-            server.connect()
+            client.connect()
             continue # back to the top
     else:
         print("[mainloop] socket not connected, reconnect")
         try:
-            server.connect()
+            client.connect()
         except RuntimeError:
             print("[mainloop] failed reconnect, reset connection")
-            server.reset()
+            client.reset()
             time.sleep(1)
 
     dot.fill((0, 0, 255))
